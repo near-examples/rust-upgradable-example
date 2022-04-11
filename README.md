@@ -26,6 +26,7 @@ pub struct Contract {
 Inside `not-upgraded-contract/` directory:
 ```bash
 ./build.sh
+rm -rf neardev # In case you already have neardev
 near dev-deploy res/sale_contract.wasm
 source neardev/dev-account.env
 ```
