@@ -1,5 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
+use near_sdk::serde::Serialize;
 use near_sdk::{env, AccountId, Promise};
 use near_sdk::{json_types::U128, near_bindgen, require};
 
@@ -12,7 +13,8 @@ pub struct SaleV1 {
     sold: bool,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Sale {
     saler: AccountId,
     item: String,
@@ -62,7 +64,7 @@ impl Default for Contract {
 
 #[near_bindgen]
 impl Contract {
-    pub fn add_sale(&mut self, item: String, price: U128, amount: u8) {
+    pub fn add_sale(&mut self, item: String, price: U128, amount: u8) -> SaleId {
         let sale_id = self.sales.len() as u64;
         let saler = env::predecessor_account_id();
         self.sales.insert(
@@ -75,11 +77,16 @@ impl Contract {
             }
             .into(), // added .into() when using Sale
         );
+        sale_id
     }
 
     #[payable]
     pub fn buy(&mut self, sale_id: SaleId) -> Promise {
-        let mut sale: Sale = self.sales.get(&sale_id).unwrap().into();
+        let mut sale: Sale = self
+            .sales
+            .get(&sale_id)
+            .expect("No sale with this id")
+            .into();
         require!(sale.amount > 0, "Sale already sold");
         let price = sale.price;
         require!(
@@ -90,5 +97,9 @@ impl Contract {
         let saler = sale.saler.clone();
         self.sales.insert(&sale_id, &sale.into());
         Promise::new(saler).transfer(price)
+    }
+
+    pub fn get_sale(self, sale_id: SaleId) -> Option<Sale> {
+        self.sales.get(&sale_id).map(|s| s.into())
     }
 }
