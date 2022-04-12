@@ -32,11 +32,11 @@ impl From<UpgradableSale> for Sale {
     fn from(sale: UpgradableSale) -> Self {
         match sale {
             UpgradableSale::V2(sale) => sale,
-            UpgradableSale::V1(SaleV1 { item, price, sold }) => Sale {
+            UpgradableSale::V1(legacy_sale) => Self {
                 saler: env::current_account_id(),
-                item,
-                price,
-                amount: !sold as u8,
+                item: legacy_sale.item,
+                price: legacy_sale.price,
+                amount: !legacy_sale.sold as u8,
             },
         }
     }
@@ -51,21 +51,37 @@ impl From<Sale> for UpgradableSale {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
+    legacy_sales: UnorderedMap<SaleId, SaleV1>,
     sales: UnorderedMap<SaleId, UpgradableSale>,
 }
 
 impl Default for Contract {
     fn default() -> Self {
         Self {
-            sales: UnorderedMap::new(b"s".to_vec()),
+            legacy_sales: UnorderedMap::new(b"s".to_vec()),
+            sales: UnorderedMap::new(b"n".to_vec()),
         }
     }
 }
 
 #[near_bindgen]
 impl Contract {
+    #[private]
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        #[derive(BorshDeserialize, BorshSerialize)]
+        pub struct OldContract {
+            sales: UnorderedMap<SaleId, SaleV1>,
+        }
+        let old_state: OldContract = env::state_read().expect("failed");
+        Contract {
+            legacy_sales: old_state.sales,
+            sales: UnorderedMap::new(b"n".to_vec()),
+        }
+    }
+
     pub fn add_sale(&mut self, item: String, price: U128, amount: u8) -> SaleId {
-        let sale_id = self.sales.len() as u64;
+        let sale_id = self.sales.len() + self.legacy_sales.len() as u64;
         let saler = env::predecessor_account_id();
         self.sales.insert(
             &sale_id,
@@ -83,10 +99,8 @@ impl Contract {
     #[payable]
     pub fn buy(&mut self, sale_id: SaleId) -> Promise {
         let mut sale: Sale = self
-            .sales
-            .get(&sale_id)
-            .expect("No sale with this id")
-            .into();
+            .get_sale_internal(sale_id)
+            .expect("No sale with this id");
         require!(sale.amount > 0, "Sale already sold");
         let price = sale.price;
         require!(
@@ -100,6 +114,19 @@ impl Contract {
     }
 
     pub fn get_sale(self, sale_id: SaleId) -> Option<Sale> {
-        self.sales.get(&sale_id).map(|s| s.into())
+        self.legacy_sales
+            .get(&sale_id)
+            .map(UpgradableSale::V1)
+            .or_else(|| self.sales.get(&sale_id))
+            .map(|sale| sale.into())
+    }
+
+    // When the legacy_sales field will be empty you can remove field from the struct
+    fn get_sale_internal(&mut self, sale_id: SaleId) -> Option<Sale> {
+        if let Some(legacy_sale) = self.legacy_sales.remove(&sale_id) {
+            self.sales
+                .insert(&sale_id, &UpgradableSale::V1(legacy_sale));
+        }
+        self.sales.get(&sale_id).map(|sale| sale.into())
     }
 }
