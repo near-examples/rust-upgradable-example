@@ -114,6 +114,7 @@ To do so we can use [enum](enum-upgraded-contract/src/lib.rs#L26) and have to [i
 
 Also would be useful to [implement](enum-upgraded-contract/src/lib.rs#L45) `From<Sale> for UpgradableSale` so we can call `.into()` method when you insert your Sales.
 
+Add [migrate method](enum-upgraded-contract/src/lib.rs#L71) and replace [get(&sale_id) calls](enum-upgraded-contract/src/lib.rs#L102). With [method](enum-upgraded-contract/src/lib.rs#L116) that will keep `legacy_sales`, or the [method](enum-upgraded-contract/src/lib.rs#L125), that will move old sales to the `sale`(if you want to get rid of `legacy_sales` at the end).
 Inside `enum-upgraded-contract/` directory:
 ```bash
 ./build.sh
@@ -135,3 +136,5 @@ result
   amount: 5
 }
 ```
+
+And now you can add new versions to UpgradableSale, without migrating it.
