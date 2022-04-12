@@ -128,7 +128,7 @@ near call $CONTRACT_NAME add_sale '{"item": "banana", "price": "500", "amount": 
 near view $CONTRACT_NAME get_sale '{"sale_id": 2}'
 ```
 result
-```json
+```javascript
 {
   saler: 'dev-1649758277593-26135201163112',
   item: 'banana',
