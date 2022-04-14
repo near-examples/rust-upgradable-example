@@ -1,6 +1,6 @@
 [package]
-name = "not-upgraded-sale-contract"
-version = "0.1.0"
+name = "upgradable-sale-contract"
+version = "0.3.0"
 authors = ["Near Inc <hello@near.org>"]
 edition = "2018"
 

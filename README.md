@@ -7,9 +7,9 @@ There are two popular ways:
   
 # Contracts
 1.  Initial contract [not-upgraded-contract](not-upgraded-contract/)
-2.  Upgrade using [migration method](migration-upgrade-contract/) 
+2.  Upgrade using [migration method](migration-upgraded-contract/) 
 3.  Upgrade using [enums](enum-upgraded-contract/) 
-
+4.  Upgradable contract with [enums](upgradable-contract)
 # Migration
 You have a deployed contract and you want to change something in the main structure of the contract without losing old state. Here the migration method will help you to do that.
 
@@ -27,7 +27,7 @@ Inside `not-upgraded-contract/` directory:
 ```bash
 ./build.sh
 rm -rf neardev # In case you already have neardev
-near dev-deploy res/sale_contract.wasm
+near dev-deploy res/not_upgraded_sale_contract.wasm
 source neardev/dev-account.env
 ```
 
@@ -46,14 +46,14 @@ pub struct Contract {
 }
 ```
 
-To do so we should keep [OldContract](migration-upgrade-contract/src/lib.rs#L24) structure and create migrate method [like that](migration-upgrade-contract/src/lib.rs#L41)
+To do so we should keep [OldContract](migration-upgraded-contract/src/lib.rs#L24) structure and create migrate method [like that](migration-upgraded-contract/src/lib.rs#L41)
 
 Let's migrate our upgraded contract
 
-Inside `migration-upgrade-contract/` directory:
+Inside `migration-upgraded-contract/` directory:
 ```bash
 ./build.sh
-near deploy $CONTRACT_NAME res/sale_contract.wasm migrate '{}'
+near deploy $CONTRACT_NAME res/migration_upgraded_sale_contract.wasm migrate '{}'
 ```
 Now we can test it
 ```bash
@@ -69,7 +69,7 @@ So the discount field added to the contract.
 # Enums
 You have a deployed contract and you want to change something in the sub structure of the contract without losing old state. Or you can't move huge structure in single call of migration method. Here the enums can help you to do that.
 
-## Example of enums
+## Example of enums upgrade
 At first, let's deploy our initial smart contract.
 
 With the structures: 
@@ -89,7 +89,7 @@ Inside `not-upgraded-contract/` directory:
 ```bash
 ./build.sh
 rm -rf neardev # In case you already have neardev
-near dev-deploy res/sale_contract.wasm
+near dev-deploy res/not_upgraded_sale_contract.wasm
 source neardev/dev-account.env
 ```
 
@@ -110,15 +110,16 @@ pub struct Sale {
 }
 ```
 
-To do so we can use [enum](enum-upgraded-contract/src/lib.rs#L26) and have to [implement](enum-upgraded-contract/src/lib.rs#L31) `From<UpgradableSale> for Sale` so your contract know how to use adopt old structure
+To do so we can use [enum](enum-upgraded-contract/src/lib.rs#L26) and have to [implement](enum-upgraded-contract/src/lib.rs#L31) `From<UpgradableSale> for Sale` so your contract know how to use adopt old structure.
 
 Also would be useful to [implement](enum-upgraded-contract/src/lib.rs#L45) `From<Sale> for UpgradableSale` so we can call `.into()` method when you insert your Sales.
 
-Add [migrate method](enum-upgraded-contract/src/lib.rs#L71) and replace [get(&sale_id) calls](enum-upgraded-contract/src/lib.rs#L102). With [method](enum-upgraded-contract/src/lib.rs#L116) that will keep `legacy_sales`, or the [method](enum-upgraded-contract/src/lib.rs#L125), that will move old sales to the `sale`(if you want to get rid of `legacy_sales` at the end).
+Add [migrate method](enum-upgraded-contract/src/lib.rs#L71) so we can use `UpgradableSale` and replace [get(&sale_id) calls](enum-upgraded-contract/src/lib.rs#L102). With [method](enum-upgraded-contract/src/lib.rs#L116) that will keep `legacy_sales`, or the [method](enum-upgraded-contract/src/lib.rs#L125), that will move old sales to the `sale`(if you want to get rid of `legacy_sales` at the end).
+
 Inside `enum-upgraded-contract/` directory:
 ```bash
 ./build.sh
-near deploy $CONTRACT_NAME res/sale_contract.wasm migrate '{}' 
+near deploy $CONTRACT_NAME res/enum_upgraded_sale_contract.wasm migrate '{}' 
 ```
 
 Now we can test it
@@ -138,3 +139,9 @@ result
 ```
 
 And now you can add new versions to UpgradableSale, without migrating it.
+
+# Upgradable contract
+If you plan to upgrade your contracts throughout their lifetime, start with enums. Adding them only after you decide to upgrade is (usually) possible, but will result in harder-to-follow (and thus more error-prone) code.
+
+## Example of upgradable contract
+[Contract](upgradable-contract/) already using enums, so you can just upgrade it by adding new Enum variants to [UpgradableSale](upgradable-contract/src/lib.rs#L26). And fixing [implementation](upgradable-contract/src/lib.rs#L31) `From<UpgradableSale> for Sale` so your contract know how to use adopt old variants of Sale.

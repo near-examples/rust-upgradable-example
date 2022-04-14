@@ -1,6 +1,6 @@
 [package]
-name = "sale-contract"
-version = "0.1.0"
+name = "enum-upgraded-sale-contract"
+version = "0.2.0"
 authors = ["Near Inc <hello@near.org>"]
 edition = "2018"
 
@@ -9,12 +9,3 @@ crate-type = ["cdylib"]
 
 [dependencies]
 near-sdk = "4.0.0-pre.7"
-
-[profile.release]
-codegen-units = 1
-# Tell `rustc` to optimize for small code size.
-opt-level = "z"
-lto = true
-debug = false
-panic = "abort"
-overflow-checks = true
