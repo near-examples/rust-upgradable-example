@@ -103,7 +103,7 @@ near call $CONTRACT_NAME buy '{"sale_id": 0}' --accountId $CONTRACT_NAME --depos
 Now we want to upgrade our Sale structure, so it looks like this:
 ```rust
 pub struct Sale {
-    saler: AccountId, // now anyone can sell their items on this contract
+    seller: AccountId, // now anyone can sell their items on this contract
     item: String,
     price: u128,
     amount: u8, // and we can sell more then one item
@@ -131,7 +131,7 @@ near view $CONTRACT_NAME get_sale '{"sale_id": 2}'
 result
 ```javascript
 {
-  saler: 'dev-1649758277593-26135201163112',
+  seller: 'dev-1649758277593-26135201163112',
   item: 'banana',
   price: 500,
   amount: 5

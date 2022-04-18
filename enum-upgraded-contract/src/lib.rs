@@ -16,7 +16,7 @@ pub struct SaleV1 {
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Sale {
-    saler: AccountId,
+    seller: AccountId,
     item: String,
     price: u128,
     amount: u8,
@@ -33,7 +33,7 @@ impl From<UpgradableSale> for Sale {
         match sale {
             UpgradableSale::V2(sale) => sale,
             UpgradableSale::V1(salev1) => Self {
-                saler: env::current_account_id(),
+                seller: env::current_account_id(),
                 item: salev1.item,
                 price: salev1.price,
                 amount: !salev1.sold as u8,
@@ -82,11 +82,11 @@ impl Contract {
 
     pub fn add_sale(&mut self, item: String, price: U128, amount: u8) -> SaleId {
         let sale_id = self.sales.len() + self.legacy_sales.len() as u64;
-        let saler = env::predecessor_account_id();
+        let seller = env::predecessor_account_id();
         self.sales.insert(
             &sale_id,
             &Sale {
-                saler,
+                seller,
                 item,
                 price: price.into(),
                 amount,
@@ -108,9 +108,9 @@ impl Contract {
             format!("Attached deposit is not equal to price({})", sale.price)
         );
         sale.amount -= 1;
-        let saler = sale.saler.clone();
+        let seller = sale.seller.clone();
         self.sales.insert(&sale_id, &sale.into());
-        Promise::new(saler).transfer(price)
+        Promise::new(seller).transfer(price)
     }
 
     pub fn get_sale(self, sale_id: SaleId) -> Option<Sale> {
