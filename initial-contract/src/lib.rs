@@ -22,7 +22,7 @@ pub struct Contract {
 impl Default for Contract {
     fn default() -> Self {
         Self {
-            sales: UnorderedMap::new(b"s".to_vec()),
+            sales: UnorderedMap::new(b"s"),
         }
     }
 }

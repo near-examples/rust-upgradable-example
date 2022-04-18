@@ -1,8 +1,12 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
 use near_sdk::serde::Serialize;
+use near_sdk::serde_json::json;
 use near_sdk::{env, AccountId, Promise};
-use near_sdk::{json_types::U128, near_bindgen, require};
+use near_sdk::{
+    json_types::{U128, U64},
+    near_bindgen, require,
+};
 
 pub type SaleId = u64;
 
@@ -19,7 +23,7 @@ pub struct Sale {
     seller: AccountId,
     item: String,
     price: u128,
-    amount: u8,
+    amount: u64,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -36,7 +40,7 @@ impl From<UpgradableSale> for Sale {
                 seller: env::current_account_id(),
                 item: salev1.item,
                 price: salev1.price,
-                amount: !salev1.sold as u8,
+                amount: !salev1.sold as u64,
             },
         }
     }
@@ -57,14 +61,14 @@ pub struct Contract {
 impl Default for Contract {
     fn default() -> Self {
         Self {
-            sales: UnorderedMap::new(b"n".to_vec()),
+            sales: UnorderedMap::new(b"s"),
         }
     }
 }
 
 #[near_bindgen]
 impl Contract {
-    pub fn add_sale(&mut self, item: String, price: U128, amount: u8) -> SaleId {
+    pub fn add_sale(&mut self, item: String, price: U128, amount: U64) -> SaleId {
         let sale_id = self.sales.len() as u64;
         let seller = env::predecessor_account_id();
         self.sales.insert(
@@ -73,7 +77,7 @@ impl Contract {
                 seller,
                 item,
                 price: price.into(),
-                amount,
+                amount: amount.into(),
             }
             .into(), // added .into() when using Sale
         );
@@ -91,7 +95,7 @@ impl Contract {
         let price = sale.price;
         require!(
             env::attached_deposit() == price,
-            format!("Attached deposit is not equal to price({})", sale.price)
+            format!("Attached deposit is not equal to the price ({})", price)
         );
         sale.amount -= 1;
         let seller = sale.seller.clone();
@@ -99,7 +103,23 @@ impl Contract {
         Promise::new(seller).transfer(price)
     }
 
-    pub fn get_sale(self, sale_id: SaleId) -> Option<Sale> {
-        self.sales.get(&sale_id).map(|sale| sale.into())
+    pub fn get_sale(self, sale_id: SaleId) -> Option<String> {
+        self.sales.get(&sale_id).map(|sale| {
+            let Sale {
+                seller,
+                item,
+                price,
+                amount,
+            } = sale.into();
+
+            // we do this because u128 and u64 are too big to be valid json numbers.
+            json!({
+                "seller": seller,
+                "item": item,
+                "price": U128(price),
+                "amount": U64(amount),
+            })
+            .to_string()
+        })
     }
 }

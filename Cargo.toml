@@ -1,5 +1,5 @@
 [workspace]
-members = ["not-upgraded-contract", "enum-upgraded-contract","migration-upgraded-contract", "upgradable-contract"]
+members = ["initial-contract", "enum-upgraded-contract","migration-upgraded-contract", "upgradable-contract"]
 
 [profile.release]
 codegen-units = 1
