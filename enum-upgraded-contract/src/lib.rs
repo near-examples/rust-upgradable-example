@@ -1,8 +1,9 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::UnorderedMap;
+use near_sdk::collections::LookupMap;
+use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::Serialize;
 use near_sdk::{env, AccountId, Promise};
-use near_sdk::{json_types::U128, near_bindgen, require};
+use near_sdk::{near_bindgen, require};
 
 pub type SaleId = u64;
 
@@ -10,7 +11,6 @@ pub type SaleId = u64;
 pub struct SaleV1 {
     item: String,
     price: u128,
-    sold: bool,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
@@ -19,7 +19,16 @@ pub struct Sale {
     seller: AccountId,
     item: String,
     price: u128,
-    amount: u8,
+    amount: u64,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SaleJson {
+    seller: AccountId,
+    item: String,
+    price: U128,
+    amount: U64,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -36,7 +45,7 @@ impl From<UpgradableSale> for Sale {
                 seller: env::current_account_id(),
                 item: salev1.item,
                 price: salev1.price,
-                amount: !salev1.sold as u8,
+                amount: 1,
             },
         }
     }
@@ -51,15 +60,17 @@ impl From<Sale> for UpgradableSale {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
-    legacy_sales: UnorderedMap<SaleId, SaleV1>,
-    sales: UnorderedMap<SaleId, UpgradableSale>,
+    legacy_sales: LookupMap<SaleId, SaleV1>,
+    sales: LookupMap<SaleId, UpgradableSale>,
+    next_sale_id: SaleId,
 }
 
 impl Default for Contract {
     fn default() -> Self {
         Self {
-            legacy_sales: UnorderedMap::new(b"s"),
-            sales: UnorderedMap::new(b"n"),
+            legacy_sales: LookupMap::new(b"s"),
+            sales: LookupMap::new(b"n"),
+            next_sale_id: 0,
         }
     }
 }
@@ -71,17 +82,21 @@ impl Contract {
     pub fn migrate() -> Self {
         #[derive(BorshDeserialize, BorshSerialize)]
         pub struct OldContract {
-            sales: UnorderedMap<SaleId, SaleV1>,
+            sales: LookupMap<SaleId, SaleV1>,
+            next_sale_id: SaleId,
         }
         let old_state: OldContract = env::state_read().expect("failed");
         Contract {
             legacy_sales: old_state.sales,
-            sales: UnorderedMap::new(b"n"),
+            sales: LookupMap::new(b"n"),
+            next_sale_id: old_state.next_sale_id,
         }
     }
 
-    pub fn add_sale(&mut self, item: String, price: U128, amount: u8) -> SaleId {
-        let sale_id = self.sales.len() + self.legacy_sales.len() as u64;
+    pub fn add_sale(&mut self, item: String, price: U128, amount: U64) -> SaleId {
+        let amount: u64 = amount.into();
+        require!(amount > 0, "Amount must be greater than 0");
+        let sale_id = self.next_sale_id;
         let seller = env::predecessor_account_id();
         self.sales.insert(
             &sale_id,
@@ -93,6 +108,7 @@ impl Contract {
             }
             .into(), // added .into() when using Sale
         );
+        self.next_sale_id += 1;
         sale_id
     }
 
@@ -109,16 +125,27 @@ impl Contract {
         );
         sale.amount -= 1;
         let seller = sale.seller.clone();
-        self.sales.insert(&sale_id, &sale.into());
+        if sale.amount == 0 {
+            self.sales.remove(&sale_id);
+        } else {
+            self.sales.insert(&sale_id, &sale.into());
+        }
         Promise::new(seller).transfer(price)
     }
 
-    pub fn get_sale(self, sale_id: SaleId) -> Option<Sale> {
-        self.legacy_sales
+    pub fn get_sale(self, sale_id: SaleId) -> Option<SaleJson> {
+        let sale: Option<Sale> = self
+            .legacy_sales
             .get(&sale_id)
             .map(UpgradableSale::V1)
             .or_else(|| self.sales.get(&sale_id))
-            .map(|sale| sale.into())
+            .map(|sale| sale.into());
+        sale.map(|s| SaleJson {
+            seller: s.seller,
+            item: s.item,
+            price: s.price.into(),
+            amount: s.amount.into(),
+        })
     }
 
     // When the legacy_sales field will be empty you can remove field from the struct

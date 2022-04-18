@@ -1,28 +1,35 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::UnorderedMap;
+use near_sdk::collections::LookupMap;
 use near_sdk::serde::Serialize;
 use near_sdk::{env, json_types::U128, near_bindgen, require};
 
 pub type SaleId = u64;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct Sale {
     item: String,
     price: u128,
-    sold: bool,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SaleJson {
+    item: String,
+    price: U128,
 }
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
-    sales: UnorderedMap<SaleId, Sale>,
+    sales: LookupMap<SaleId, Sale>,
+    next_sale_id: SaleId,
 }
 
 impl Default for Contract {
     fn default() -> Self {
         Self {
-            sales: UnorderedMap::new(b"s"),
+            sales: LookupMap::new(b"s"),
+            next_sale_id: 0,
         }
     }
 }
@@ -31,31 +38,32 @@ impl Default for Contract {
 impl Contract {
     #[private]
     pub fn add_sale(&mut self, item: String, price: U128) -> SaleId {
-        let sale_id = self.sales.len() as u64;
+        let sale_id = self.next_sale_id;
         self.sales.insert(
             &sale_id,
             &Sale {
                 item,
                 price: price.into(),
-                sold: false,
             },
         );
+        self.next_sale_id += 1;
         sale_id
     }
 
     #[payable]
     pub fn buy(&mut self, sale_id: SaleId) {
-        let mut sale: Sale = self.sales.get(&sale_id).expect("No sale with this id");
-        require!(!sale.sold, "Sale already sold");
+        let sale: Sale = self.sales.remove(&sale_id).expect("No sale with this id");
         require!(
             env::attached_deposit() == sale.price,
             "Not enough balance to buy this item"
         );
-        sale.sold = true;
-        self.sales.insert(&sale_id, &sale);
     }
 
-    pub fn get_sale(self, sale_id: SaleId) -> Option<Sale> {
-        self.sales.get(&sale_id)
+    pub fn get_sale(self, sale_id: SaleId) -> Option<SaleJson> {
+        let sale = self.sales.get(&sale_id);
+        sale.map(|s| SaleJson {
+            item: s.item,
+            price: U128(s.price),
+        })
     }
 }
