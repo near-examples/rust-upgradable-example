@@ -442,6 +442,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "initial-sale-contract"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -671,13 +678,6 @@ dependencies = [
  "serde",
  "sha2",
  "sha3",
-]
-
-[[package]]
-name = "not-upgraded-sale-contract"
-version = "0.1.0"
-dependencies = [
- "near-sdk",
 ]
 
 [[package]]

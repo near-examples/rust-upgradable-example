@@ -6,12 +6,12 @@ There are two popular ways:
 - Using [enums](https://www.near-sdk.io/upgrading/production-basics#using-enums)
   
 # Contracts
-1.  Initial contract [not-upgraded-contract](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/not-upgraded-contract/)
-2.  Upgrade using [migration method](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/migration-upgraded-contract/) 
-3.  Upgrade using [enums](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/) 
-4.  Upgradable contract with [enums](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/upgradable-contract)
+1.  Initial contract [initial-contract](initial-contract/)
+2.  Upgrade using [migration method](migration-upgraded-contract/) 
+3.  Upgrade using [enums](enum-upgraded-contract/) 
+4.  Upgradable contract with [enums](upgradable-contract/)
 # Migration
-You have a deployed contract and you want to change something in the main structure of the contract without losing old state. Here the migration method will help you to do that.
+When you have a deployed contract and you need to change something in the main structure of the contract without losing the old state. It is possible to do using migration method.
 
 ## Example of migration
 At first, let's deploy our initial smart contract.
@@ -23,22 +23,22 @@ pub struct Contract {
 }
 ```
 
-Inside `not-upgraded-contract/` directory:
+Inside of `initial-contract/` directory execute
 ```bash
 ./build.sh
 rm -rf neardev # In case you already have neardev
-near dev-deploy res/not_upgraded_sale_contract.wasm
+near dev-deploy res/initial_sale_contract.wasm
 source neardev/dev-account.env
 ```
 
-And fill the state a little
+Add some data to our state
 ```bash
 near call $CONTRACT_NAME add_sale '{"item": "foo", "price": "42"}' --accountId $CONTRACT_NAME
 near call $CONTRACT_NAME add_sale '{"item": "bar", "price": "10000"}' --accountId $CONTRACT_NAME
 near call $CONTRACT_NAME buy '{"sale_id": 0}' --accountId $CONTRACT_NAME --depositYocto 42
 ```
 
-Now we want to upgrade our contract structure, so it looks like this:
+Later we realised that we also want to have discounts for our users. The main structure will look like this:
 ```rust
 pub struct Contract {
     sales: UnorderedMap<SaleId, Sale>,
@@ -85,11 +85,11 @@ pub struct Contract {
 }
 ```
 
-Inside `not-upgraded-contract/` directory:
+Inside `initial-contract/` directory:
 ```bash
 ./build.sh
 rm -rf neardev # In case you already have neardev
-near dev-deploy res/not_upgraded_sale_contract.wasm
+near dev-deploy res/initial_sale_contract.wasm
 source neardev/dev-account.env
 ```
 
@@ -106,7 +106,7 @@ pub struct Sale {
     seller: AccountId, // now anyone can sell their items on this contract
     item: String,
     price: u128,
-    amount: u8, // and we can sell more then one item
+    amount: u64, // and we can sell more then one item
 }
 ```
 
@@ -125,17 +125,12 @@ near deploy $CONTRACT_NAME res/enum_upgraded_sale_contract.wasm migrate '{}'
 Now we can test it
 ```bash
 near call $CONTRACT_NAME buy '{"sale_id": 1}' --accountId $CONTRACT_NAME --depositYocto 10000
-near call $CONTRACT_NAME add_sale '{"item": "banana", "price": "500", "amount": 5}' --accountId $CONTRACT_NAME
+near call $CONTRACT_NAME add_sale '{"item": "banana", "price": "500", "amount": "5"}' --accountId $CONTRACT_NAME
 near view $CONTRACT_NAME get_sale '{"sale_id": 2}'
 ```
 result
 ```javascript
-{
-  seller: 'dev-1649758277593-26135201163112',
-  item: 'banana',
-  price: 500,
-  amount: 5
-}
+'{"seller":"dev-1650279768195-86068399571956","item":"banana","price":"500","amount":"5"}'
 ```
 
 And now you can add new versions to UpgradableSale, without migrating it.

@@ -58,8 +58,8 @@ pub struct Contract {
 impl Default for Contract {
     fn default() -> Self {
         Self {
-            legacy_sales: UnorderedMap::new(b"s".to_vec()),
-            sales: UnorderedMap::new(b"n".to_vec()),
+            legacy_sales: UnorderedMap::new(b"s"),
+            sales: UnorderedMap::new(b"n"),
         }
     }
 }
@@ -76,7 +76,7 @@ impl Contract {
         let old_state: OldContract = env::state_read().expect("failed");
         Contract {
             legacy_sales: old_state.sales,
-            sales: UnorderedMap::new(b"n".to_vec()),
+            sales: UnorderedMap::new(b"n"),
         }
     }
 
