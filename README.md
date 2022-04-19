@@ -19,7 +19,8 @@ At first, let's deploy our initial smart contract.
 With the main structure: 
 ```rust
 pub struct Contract {
-    sales: UnorderedMap<SaleId, Sale>,
+    sales: LookupMap<SaleId, Sale>,
+    next_sale_id: SaleId,
 }
 ```
 
@@ -41,12 +42,13 @@ near call $CONTRACT_NAME buy '{"sale_id": 0}' --accountId $CONTRACT_NAME --depos
 Later we realised that we also want to have discounts for our users. The main structure will look like this:
 ```rust
 pub struct Contract {
-    sales: UnorderedMap<SaleId, Sale>,
-    discount: UnorderedMap<AccountId, u32>,
+    sales: LookupMap<SaleId, Sale>,
+    discount: LookupMap<AccountId, u32>,
+    next_sale_id: SaleId,
 }
 ```
 
-To do so we should keep [OldContract](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/migration-upgraded-contract/src/lib.rs#L26) structure and create migrate method [like that](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/migration-upgraded-contract/src/lib.rs#L43)
+To do so we should keep [OldContract](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/migration-upgraded-contract/src/lib.rs#L33) structure and create migrate method [like that](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/migration-upgraded-contract/src/lib.rs#L51)
 
 Let's migrate our upgraded contract
 
@@ -77,11 +79,11 @@ With the structures:
 pub struct Sale {
     item: String,
     price: u128,
-    sold: bool,
 }
 
 pub struct Contract {
-    sales: UnorderedMap<SaleId, Sale>,
+    sales: LookupMap<SaleId, Sale>,
+    next_sale_id: SaleId,
 }
 ```
 
@@ -110,11 +112,11 @@ pub struct Sale {
 }
 ```
 
-To do so we can use [enum](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/src/lib.rs#L26) and have to [implement](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/src/lib.rs#L31) `From<UpgradableSale> for Sale` so your contract know how to use adopt old structure.
+To do so we can use [enum](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/enum-upgraded-contract/src/lib.rs#L34) and have to [implement](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/enum-upgraded-contract/src/lib.rs#L40) `From<UpgradableSale> for Sale` so your contract know how to adopt old structure.
 
-Also would be useful to [implement](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/src/lib.rs#L45) `From<Sale> for UpgradableSale` so we can call `.into()` method when you insert your Sales.
+Also would be useful to [implement](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/enum-upgraded-contract/src/lib.rs#L54) `From<Sale> for UpgradableSale` so we can call `.into()` method when you insert your Sales.
 
-Add [migrate method](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/src/lib.rs#L71) so we can use `UpgradableSale` and replace [get(&sale_id) calls](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/src/lib.rs#L102). With [method](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/src/lib.rs#L116) that will keep `legacy_sales`, or the [method](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/enum-upgraded-contract/src/lib.rs#L125), that will move old sales to the `sale`(if you want to get rid of `legacy_sales` at the end).
+Add [migrate method](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/enum-upgraded-contract/src/lib.rs#L80) so we can use `UpgradableSale` and replace [get(&sale_id) calls](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/enum-upgraded-contract/src/lib.rs#L118). With [method](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/enum-upgraded-contract/src/lib.rs#L136) that will keep `legacy_sales`, or the [method](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/enum-upgraded-contract/src/lib.rs#L152), that will move old sales to the `sale`(if you want to get rid of `legacy_sales` at the end).
 
 Inside `enum-upgraded-contract/` directory:
 ```bash
@@ -139,4 +141,4 @@ And now you can add new versions to UpgradableSale, without migrating it.
 If you plan to upgrade your contracts throughout their lifetime, start with enums. Adding them only after you decide to upgrade is (usually) possible, but will result in harder-to-follow (and thus more error-prone) code.
 
 ## Example of upgradable contract
-[Contract](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/upgradable-contract/) already using enums, so you can just upgrade it by adding new Enum variants to [UpgradableSale](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/upgradable-contract/src/lib.rs#L26). And fixing [implementation](https://github.com/near-examples/rust-upgradable-example/blob/a9a23827e127cb87b76101b58ea563485ea462cc/upgradable-contract/src/lib.rs#L31) `From<UpgradableSale> for Sale` so your contract know how to use adopt old variants of Sale.
+[Contract](upgradable-contract/) already using enums, so you can just upgrade it by adding new Enum variants to [UpgradableSale](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/upgradable-contract/src/lib.rs#L35). And fixing [implementation](https://github.com/near-examples/rust-upgradable-example/blob/cd8b7c5a437906e2ff040ac05176ebe5e025ea66/upgradable-contract/src/lib.rs#L41) `From<UpgradableSale> for Sale` so your contract know how to use adopt old variants of Sale.
